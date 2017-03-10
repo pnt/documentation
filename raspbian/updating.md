@@ -1,10 +1,25 @@
 # Updating and Upgrading Raspbian
-There are two steps to upgrading. First run `sudo apt-get update` in order to synchronise the database of available software packages and the versions available. Following this with `sudo apt-get upgrade` will cause any packages which have newer versions available to be updated.
 
-Generally speaking, doing this regularly will keep your installation up to date (i.e. equivalent to the latest released image). However, there are occasionally times where a change is made in the Foundation's Raspbian image that would require your intervention to reproduce. A recent example would be the addition of the `xserver-xorg-video-fbturbo` X.Org driver to the standard image, which requires people running older images to manually install the package to benefit from it. Cases like this are documented on the relevant image update announcement on the Raspberry Pi blog.
+First, **update** your system's package list by entering the following command in LXTerminal or from the command line:
+
+```bash
+sudo apt-get update
+```
+
+Next, **upgrade** all your installed packages to their latest versions with the command:
+
+```bash
+sudo apt-get dist-upgrade
+```
+
+Generally speaking, doing this regularly will keep your installation up to date, in that it will be equivalent to the latest released image available from [raspberrypi.org/downloads](http://www.raspberrypi.org/downloads/).
+
+However, there are occasional changes made in the Foundation's Raspbian image that require manual intervention, for example a newly introduced package. These are not installed with an upgrade, as this command only updates the packages you already have installed.
 
 ## Updating the kernel and firmware
-The kernel and firmware are installed as a Debian package, and so will also get updates when using the procedure above. These packages are updated infrequently (after lots of testing has been done), but if you want to try something more bleeding edge it's also easy to update to the latest available version using [rpi-update](https://github.com/Hexxeh/rpi-update). rpi-update is preinstalled on the current Raspbian image, so you can just use `sudo rpi-update` to try the latest firmware (sometimes this will be suggested to you when troubleshooting). If you have errors about invalid certificates, then run `sudo apt-get update && sudo apt-get install rpi-update` to upgrade to the latest rpi-update version.
+
+The kernel and firmware are installed as a Debian package, and so will also get updates when using the procedure above. These packages are updated infrequently and after extensive testing.
 
 ## Running out of space
-When running `sudo apt-get upgrade`, an indication of how much data will be downloaded and how much space on the SD card this will take is shown. It's worth checking with `df -h` that you have enough disk space free as unforunately apt will not do this for you. Also be aware that downloaded package files (.deb files) are kept in `/var/cache/apt/archives`. You can remove these in order to free up space with `sudo apt-get clean`.
+
+When running `sudo apt-get dist-upgrade`, it will show how much data will be downloaded and how much space it will take up on the SD card. It's worth checking with `df -h` that you have enough disk space free, as unfortunately `apt` will not do this for you. Also be aware that downloaded package files (`.deb` files) are kept in `/var/cache/apt/archives`. You can remove these in order to free up space with `sudo apt-get clean`.

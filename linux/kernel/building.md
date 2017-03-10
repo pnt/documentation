@@ -1,51 +1,76 @@
-# Kernel Building
+# Kernel building
 
-There are two main methods for building the kernel: locally on a Raspberry Pi (be prepared to wait!); or cross-compiled (much quicker, but requires more setup)
+There are two main methods for building the kernel. You can build locally on a Raspberry Pi, which will take a long time; or you can cross-compile, which is much quicker, but requires more setup.
 
 ## Local building
 
-On a Raspberry Pi first install the latest version of [Raspbian](http://www.raspberrypi.org/downloads) from the downloads page. Then boot your Pi, plug in ethernet (to give you access to the sources) and log in.
+On a Raspberry Pi, first install the latest version of [Raspbian](https://www.raspberrypi.org/downloads/). Then boot your Pi, plug in Ethernet to give you access to the sources, and log in.
 
-First get the sources: (takes a bit of time...)
+First install Git and the build dependencies:
 
-```
-$ git clone --depth=1 https://github.com/raspberrypi/linux
-```
-
-Add missing dependencies:
-
-```
-$ sudo apt-get install bc
+```bash
+sudo apt-get install git bc
 ```
 
-Build the kernel (takes a _lot_ of time...)
+Next get the sources, which will take some time:
 
-```
-$ make bcmrpi_defconfig
-$ make
-$ make modules
-$ sudo make modules_install
-$ sudo cp arch/arm/boot/Image /boot/kernel.img
+```bash
+git clone --depth=1 https://github.com/raspberrypi/linux
 ```
 
-## Cross compiling
+Configure the kernel; as well as the default configuration, you may wish to [configure your kernel in more detail](configuring.md) or [apply patches from another source](patching.md), to add or remove required functionality:
 
-First you are going to require a suitable Linux cross compilation host, we tend to use Ubuntu since Raspbian is 
-also a debian distribution it means using similar command lines etc!
+Run the following commands, depending on your Raspberry Pi version.
 
-You can either do this using VirtualBox (or VMWare) on Windows or install it directly onto your computer.  For reference I'd suggest following instructions online http://www.wikihow.com/Install-Ubuntu-on-VirtualBox
+### Raspberry Pi 1 (or Compute Module) default build configuration
+
+```bash
+cd linux
+KERNEL=kernel
+make bcmrpi_defconfig
+```
+
+### Raspberry Pi 2/3 default build configuration
+
+```bash
+cd linux
+KERNEL=kernel7
+make bcm2709_defconfig
+```
+
+Build and install the kernel, modules, and Device Tree blobs; this step takes a **long** time:
+
+```bash
+make -j4 zImage modules dtbs
+sudo make modules_install
+sudo cp arch/arm/boot/dts/*.dtb /boot/
+sudo cp arch/arm/boot/dts/overlays/*.dtb* /boot/overlays/
+sudo cp arch/arm/boot/dts/overlays/README /boot/overlays/
+sudo scripts/mkknlimg arch/arm/boot/zImage /boot/$KERNEL.img
+```
+
+**Note**: On a Raspberry Pi 2/3, the `-j4` flag splits the work between all four cores, speeding up compilation significantly.
+
+## Cross-compiling
+
+First, you will need a suitable Linux cross-compilation host. We tend to use Ubuntu; since Raspbian is 
+also a Debian distribution, it means many aspects are similar, such as the command lines.
+
+You can either do this using VirtualBox (or VMWare) on Windows, or install it directly onto your computer. For reference, you can follow instructions online [at Wikihow](http://www.wikihow.com/Install-Ubuntu-on-VirtualBox).
 
 ### Install toolchain
 
-```
-$ git clone https://github.com/raspberrypi/tools
+Use the following command to install the toolchain:
+
+```bash
+git clone https://github.com/raspberrypi/tools
 ```
 
-You can then copy the toolchain somewhere common, I tend to install mine to /tools/arm-bcm2708/gcc-linaro-arm-linux-gnueabihf-raspbian and add a path to that directory into the .bashrc in your home directory although that is not strictly necessary it does make it easier for later command lines!
+You can then copy the `/tools/arm-bcm2708/gcc-linaro-arm-linux-gnueabihf-raspbian` directory to a common location, and add `/tools/arm-bcm2708/gcc-linaro-arm-linux-gnueabihf-raspbian/bin` to your $PATH in the `.bashrc` in your home directory. For 64-bit host systems, use `/tools/arm-bcm2708/gcc-linaro-arm-linux-gnueabihf-raspbian-x64/bin`. While this step isn't strictly necessary, it does make it easier for later command lines!
 
 ### Get sources
 
-To get the sources, refer to the original github repository for the various branches.  https://github.com/raspberrypi/linux
+To get the sources, refer to the original [GitHub](https://github.com/raspberrypi/linux) repository for the various branches.
 
 ```
 $ git clone --depth=1 https://github.com/raspberrypi/linux
@@ -53,21 +78,39 @@ $ git clone --depth=1 https://github.com/raspberrypi/linux
 
 ### Build sources
 
-To build the sources for cross compilation there may be extra dependancies over and above what you've installed by default with Ubuntu (I'm assuming above git was already installed for example!).  If you find you need other things please submit a pull request to change the documentation!  Thanks
+To build the sources for cross-compilation, there may be extra dependencies beyond those you've installed by default with Ubuntu. If you find you need other things, please submit a pull request to change the documentation.
 
+Enter the following commands to build the sources and Device Tree files:
+
+For Pi 1 or Compute Module:
+
+```bash
+cd linux
+KERNEL=kernel
+make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- bcmrpi_defconfig
 ```
-$ cd linux
-$ make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- bcmrpi-defconfig
-$ make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf-
+
+For Pi 2/3:
+
+```bash
+cd linux
+KERNEL=kernel7
+make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- bcm2709_defconfig
 ```
 
-Note to speed up compilation on multiprocessor systems (and get some improvement on single processor ones) use ```-j n``` where n is number of processors * 1.5 or play around and see what works!
+Then, for both:
 
-### Install
+```bash
+make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- zImage modules dtbs
+```
 
-Now having built the kernel you need to copy the it onto your Raspberry Pi and install the modules, this is best done directly using an SD card reader.
+**Note**: To speed up compilation on multiprocessor systems, and get some improvement on single processor ones, use `-j n`, where n is the number of processors * 1.5. Alternatively, feel free to experiment and see what works!
 
-First use lsblk before and after plugging in your sdcard to identify which one it is, you should end up with something like:
+### Install directly onto the SD card
+
+Having built the kernel, you need to copy it onto your Raspberry Pi and install the modules; this is best done directly using an SD card reader.
+
+First, use `lsblk` before and after plugging in your SD card to identify it. You should end up with something like this:
 
 ```
 sdb
@@ -75,51 +118,54 @@ sdb
    sdb2
 ```
 
-Unless it is a NOOBS card in which case you should see something like:
+with `sdb1` being the FAT (boot) partition, and `sdb2` being the ext4 filesystem (root) partition.
+
+If it's a NOOBS card, you should see something like this:
 
 ```
 sdb
   sdb1
   sdb2
-  sdb3
   sdb5
   sdb6
+  sdb7
 ```
 
-It the first case [sdb1/sdb5] is the FAT partition [sdb2/sdb6] is the ext4 filesystem [image / NOOBS]
+with `sdb6` being the FAT (boot) partition, and `sdb7` being the ext4 filesystem (root) partition.
 
-So mount these first
+Mount these first, adjusting the partition numbers for NOOBS cards:
 
-```
-$ mkdir mnt/fat32
-$ mkdir mnt/ext4
-$ sudo mount /dev/sdb1 mnt/fat32
-$ sudo mount /dev/sdb2 mnt/ext4
-```
-
-Adjust partition numbers for NOOBS images
-
-Next install the modules
-
-```
-$ make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- INSTALL_MOD_PATH=mnt/ext4 modules
-$ sudo make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- INSTALL_MOD_PATH=mnt/ext4 modules_install
+```bash
+mkdir mnt/fat32
+mkdir mnt/ext4
+sudo mount /dev/sdb1 mnt/fat32
+sudo mount /dev/sdb2 mnt/ext4
 ```
 
-Finally copy the kernel onto the SD card
+Next, install the modules:
 
-```
-$ sudo cp arch/arm/boot/Image mnt/fat32/kernel.img
-$ sudo umount mnt/fat32
-$ sudo umount mnt/ext4
+```bash
+sudo make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- INSTALL_MOD_PATH=mnt/ext4 modules_install
 ```
 
-Unplug the card and boot the Pi!
+Finally, copy the kernel and Device Tree blobs onto the SD card, making sure to back up your old kernel:
 
-## Links
+```bash
+sudo cp mnt/fat32/$KERNEL.img mnt/fat32/$KERNEL-backup.img
+sudo scripts/mkknlimg arch/arm/boot/zImage mnt/fat32/$KERNEL.img
+sudo cp arch/arm/boot/dts/*.dtb mnt/fat32/
+sudo cp arch/arm/boot/dts/overlays/*.dtb* mnt/fat32/overlays/
+sudo cp arch/arm/boot/dts/overlays/README mnt/fat32/overlays/
+sudo umount mnt/fat32
+sudo umount mnt/ext4
+```
 
-Building / cross compiling on/for other operating systems
-- Pidora
-- ArchLinux
-- RaspBMC
-- OpenELEC
+Another option is to copy the kernel into the same place, but with a different filename - for instance, kernel-myconfig.img - rather than overwriting the kernel.img file. You can then edit the config.txt file to select the kernel that the Pi will boot into:
+
+```
+kernel=kernel-myconfig.img
+```
+
+This has the advantage of keeping your kernel separate from the kernel image managed by the system and any automatic update tools, and allowing you to easily revert to a stock kernel in the event that your kernel cannot boot.
+
+Finally, plug the card into the Pi and boot it!
